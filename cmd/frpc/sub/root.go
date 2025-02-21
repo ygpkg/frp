@@ -17,10 +17,13 @@ package sub
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -43,22 +46,22 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./frpc.ini", "config file of frpc")
-	rootCmd.PersistentFlags().StringVarP(&cfgDir, "config_dir", "", "", "config directory, run one frpc service for each file in config directory")
-	rootCmd.PersistentFlags().BoolVarP(&showVersion, "version", "v", false, "version of frpc")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./yg-proxy.ini", "config file of yg-proxy")
+	rootCmd.PersistentFlags().StringVarP(&cfgDir, "config_dir", "", "", "config directory, run one yg-proxy service for each file in config directory")
+	rootCmd.PersistentFlags().BoolVarP(&showVersion, "version", "v", false, "version of yg-proxy")
 	rootCmd.PersistentFlags().BoolVarP(&strictConfigMode, "strict_config", "", true, "strict config parsing mode, unknown fields will cause an errors")
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "frpc",
-	Short: "frpc is the client of frp (https://github.com/fatedier/frp)",
+	Use:   "yg-proxy",
+	Short: "yg-proxy is the client of yg-proxy",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if showVersion {
 			fmt.Println(version.Full())
 			return nil
 		}
 
-		// If cfgDir is not empty, run multiple frpc service for each config file in cfgDir.
+		// If cfgDir is not empty, run multiple yg-proxy service for each config file in cfgDir.
 		// Note that it's only designed for testing. It's not guaranteed to be stable.
 		if cfgDir != "" {
 			_ = runMultipleClients(cfgDir)
@@ -87,7 +90,7 @@ func runMultipleClients(cfgDir string) error {
 			defer wg.Done()
 			err := runClient(path)
 			if err != nil {
-				fmt.Printf("frpc service error for config file [%s]\n", path)
+				fmt.Printf("yg-proxy service error for config file [%s]\n", path)
 			}
 		}()
 		return nil
@@ -110,7 +113,42 @@ func handleTermSignal(svr *client.Service) {
 	svr.GracefulClose(500 * time.Millisecond)
 }
 
+func downloadRemoteFile(cfgFilePath string) string {
+	if strings.HasPrefix(cfgFilePath, "http://") || strings.HasPrefix(cfgFilePath, "https://") {
+		newfile, err := downloadRemoteFileFromURL(cfgFilePath)
+		if err != nil {
+			log.Errorf("download remote file error: %v", err)
+			return cfgFilePath
+		}
+		return newfile
+	}
+	return cfgFilePath
+}
+
+func downloadRemoteFileFromURL(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Errorf("download remote file error: %v", err)
+		return "", err
+	}
+	defer resp.Body.Close()
+	f, err := os.CreateTemp(os.TempDir(), "*.ini")
+	if err != nil {
+		log.Errorf("create temp file error: %v", err)
+		return "", err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		log.Errorf("copy remote file error: %v", err)
+		return "", err
+	}
+	return f.Name(), nil
+}
+
 func runClient(cfgFilePath string) error {
+	cfgFilePath = downloadRemoteFile(cfgFilePath)
 	cfg, proxyCfgs, visitorCfgs, isLegacyFormat, err := config.LoadClientConfig(cfgFilePath, strictConfigMode)
 	if err != nil {
 		return err
@@ -139,8 +177,8 @@ func startService(
 	log.InitLogger(cfg.Log.To, cfg.Log.Level, int(cfg.Log.MaxDays), cfg.Log.DisablePrintColor)
 
 	if cfgFile != "" {
-		log.Infof("start frpc service for config file [%s]", cfgFile)
-		defer log.Infof("frpc service for config file [%s] stopped", cfgFile)
+		log.Infof("start yg-proxy service for config file [%s]", cfgFile)
+		defer log.Infof("yg-proxy service for config file [%s] stopped", cfgFile)
 	}
 	svr, err := client.NewService(client.ServiceOptions{
 		Common:         cfg,

@@ -17,11 +17,9 @@ package sub
 import (
 	"fmt"
 	"os"
-	"slices"
 
 	"github.com/spf13/cobra"
 
-	"github.com/fatedier/frp/pkg/config"
 	v1 "github.com/fatedier/frp/pkg/config/v1"
 	"github.com/fatedier/frp/pkg/config/v1/validation"
 )
@@ -43,30 +41,30 @@ var visitorTypes = []v1.VisitorType{
 	v1.VisitorTypeXTCP,
 }
 
-func init() {
-	for _, typ := range proxyTypes {
-		c := v1.NewProxyConfigurerByType(typ)
-		if c == nil {
-			panic("proxy type: " + typ + " not support")
-		}
-		clientCfg := v1.ClientCommonConfig{}
-		cmd := NewProxyCommand(string(typ), c, &clientCfg)
-		config.RegisterClientCommonConfigFlags(cmd, &clientCfg)
-		config.RegisterProxyFlags(cmd, c)
+// func init() {
+// 	for _, typ := range proxyTypes {
+// 		c := v1.NewProxyConfigurerByType(typ)
+// 		if c == nil {
+// 			panic("proxy type: " + typ + " not support")
+// 		}
+// 		clientCfg := v1.ClientCommonConfig{}
+// 		cmd := NewProxyCommand(string(typ), c, &clientCfg)
+// 		config.RegisterClientCommonConfigFlags(cmd, &clientCfg)
+// 		config.RegisterProxyFlags(cmd, c)
 
-		// add sub command for visitor
-		if slices.Contains(visitorTypes, v1.VisitorType(typ)) {
-			vc := v1.NewVisitorConfigurerByType(v1.VisitorType(typ))
-			if vc == nil {
-				panic("visitor type: " + typ + " not support")
-			}
-			visitorCmd := NewVisitorCommand(string(typ), vc, &clientCfg)
-			config.RegisterVisitorFlags(visitorCmd, vc)
-			cmd.AddCommand(visitorCmd)
-		}
-		rootCmd.AddCommand(cmd)
-	}
-}
+// 		// add sub command for visitor
+// 		if slices.Contains(visitorTypes, v1.VisitorType(typ)) {
+// 			vc := v1.NewVisitorConfigurerByType(v1.VisitorType(typ))
+// 			if vc == nil {
+// 				panic("visitor type: " + typ + " not support")
+// 			}
+// 			visitorCmd := NewVisitorCommand(string(typ), vc, &clientCfg)
+// 			config.RegisterVisitorFlags(visitorCmd, vc)
+// 			cmd.AddCommand(visitorCmd)
+// 		}
+// 		rootCmd.AddCommand(cmd)
+// 	}
+// }
 
 func NewProxyCommand(name string, c v1.ProxyConfigurer, clientCfg *v1.ClientCommonConfig) *cobra.Command {
 	return &cobra.Command{
