@@ -17,8 +17,8 @@ make -f ./Makefile.cross-compiles
 rm -rf ./release/packages
 mkdir -p ./release/packages
 
-os_all='linux windows darwin freebsd android'
-arch_all='386 amd64 arm arm64 mips64 mips64le mips mipsle riscv64 loong64'
+os_all='linux windows'
+arch_all='amd64'
 extra_all='_ hf'
 
 cd ./release
@@ -37,12 +37,8 @@ for os in $os_all; do
                 if [ ! -f "./frpc_${os}_${arch}.exe" ]; then
                     continue
                 fi
-                if [ ! -f "./frps_${os}_${arch}.exe" ]; then
-                    continue
-                fi
                 mkdir ${frp_path}
                 mv ./frpc_${os}_${arch}.exe ${frp_path}/frpc.exe
-                mv ./frps_${os}_${arch}.exe ${frp_path}/frps.exe
             else
                 if [ ! -f "./frpc_${suffix}" ]; then
                     continue
@@ -52,11 +48,9 @@ for os in $os_all; do
                 fi
                 mkdir ${frp_path}
                 mv ./frpc_${suffix} ${frp_path}/frpc
-                mv ./frps_${suffix} ${frp_path}/frps
             fi  
             cp ../LICENSE ${frp_path}
             cp -f ../conf/frpc.toml ${frp_path}
-            cp -f ../conf/frps.toml ${frp_path}
 
             # packages
             cd ./packages
